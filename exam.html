@@ -45,6 +45,20 @@
   .field input:focus{outline:none; border-color:var(--brand);}
   .field-error{color:var(--bad); font-size:.85rem; margin-top:6px; display:none;}
 
+  /* timer */
+  .timer-row{display:flex; justify-content:flex-end; margin-bottom:10px; min-height:34px;}
+  .timer{
+    font-weight:700; font-variant-numeric:tabular-nums; font-size:.95rem;
+    background:#e2e8f0; color:var(--ink); padding:7px 16px; border-radius:99px;
+  }
+  .timer.warn{background:#fef9c3; color:#854d0e;}
+  .timer.danger{background:var(--bad-bg); color:var(--bad); animation:pulse 1s infinite;}
+  @keyframes pulse{50%{opacity:.5;}}
+  .timeup{
+    display:inline-block; background:var(--bad-bg); color:var(--bad);
+    border-radius:8px; padding:8px 16px; font-weight:600; margin:4px 0 8px;
+  }
+
   /* progress */
   .progress-wrap{margin-bottom:20px;}
   .progress-label{display:flex; justify-content:space-between; font-size:.85rem; color:var(--muted); margin-bottom:6px;}
@@ -124,6 +138,7 @@
       <li>Choose one option per question, then move to the next.</li>
       <li>You can go back and change an answer before submitting.</li>
       <li>Your result is shown <strong>immediately</strong> after you submit.</li>
+      <li id="start-time-line">Time limit: <strong id="start-time"></strong>. The test submits itself when time runs out.</li>
       <li id="start-pass-line">Pass mark: <strong id="start-pass"></strong>.</li>
     </ul>
     <div class="center">
@@ -133,6 +148,7 @@
 
   <!-- ============ QUIZ SCREEN ============ -->
   <section id="screen-quiz" class="hidden">
+    <div class="timer-row"><span id="timer" class="timer hidden"></span></div>
     <div class="progress-wrap">
       <div class="progress-label">
         <span id="progress-text"></span>
@@ -154,6 +170,7 @@
     <h1>Test Complete!</h1>
     <p class="muted">Here is your result</p>
     <p class="muted small" id="result-meta"></p>
+    <div><span id="timeup-note" class="timeup hidden">⏰ Time expired — the test was submitted automatically.</span></div>
     <div class="score-big" id="score-percent"></div>
     <div class="score-sub" id="score-detail"></div>
     <div class="badge" id="result-badge"></div>
@@ -178,9 +195,11 @@
 const CONFIG = {
   examTitle: "NetClass — Quick Assessment",
   subtitle: "Cisco Networking · Emoji Digitals Academy · 2026 · Cohort 01",
-  note: "Choose one answer for each question. About 5–7 minutes. This helps us understand your starting point.",
-  passMarkPercent: 50,    // pass mark in % (used only when showPassFail is true)
-  showPassFail: true      // the source form is diagnostic ("not a pass-or-fail test") — set false to hide the PASSED/FAILED badge
+  note: "Choose one answer for each question. You have 5 minutes on the clock. This helps us understand your starting point.",
+  passMarkPercent: 60,    // pass mark in % (used only when showPassFail is true)
+  showPassFail: true,     // the source form is diagnostic ("not a pass-or-fail test") — set false to hide the PASSED/FAILED badge
+  examDurationMinutes: 5, // countdown timer in minutes (0 = no timer)
+  shuffleQuestions: true  // shuffle question order on every attempt
 };
 
 /* =====================================================================
@@ -254,6 +273,34 @@ const QUESTIONS = [
       "Reinstall the operating system immediately."
     ],
     answer: 2
+  },
+  /* --- Logic --- */
+  {
+    question: "If a device is a router, then it connects different networks. Device X is a router. Which conclusion must be true?",
+    options: [
+      "Device X connects different networks.",
+      "Any device that connects networks is a router.",
+      "Device X is a computer.",
+      "Device X cannot connect networks."
+    ],
+    answer: 0
+  },
+  /* --- Problem solving --- */
+  {
+    question: "You must send a 2 GB project file, but email only allows 25 MB attachments. What is the most practical solution?",
+    options: [
+      "Send the email anyway and hope it arrives.",
+      "Delete parts of the file so it fits, without telling the recipient.",
+      "Split or compress the file, or share it through cloud storage or a USB drive.",
+      "Print the file and post the paper copy."
+    ],
+    answer: 2
+  },
+  /* --- Quantitative reasoning --- */
+  {
+    question: "In a training cohort, the ratio of boys to girls is 3 : 5. If there are 24 boys, how many girls are there?",
+    options: ["15", "32", "40", "45"],
+    answer: 2
   }
 ];
 
@@ -262,8 +309,52 @@ const QUESTIONS = [
    ===================================================================== */
 let current = 0;
 let userAnswers = [];
+let activeQuestions = [];
+let timerInterval = null;
+let secondsLeft = 0;
 
 const $ = id => document.getElementById(id);
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function buildActiveQuestions() {
+  activeQuestions = CONFIG.shuffleQuestions ? shuffle(QUESTIONS) : QUESTIONS.slice();
+}
+
+/* ---------- countdown timer ---------- */
+function startTimer() {
+  stopTimer();
+  const el = $("timer");
+  if (!CONFIG.examDurationMinutes) { el.classList.add("hidden"); return; }
+  secondsLeft = CONFIG.examDurationMinutes * 60;
+  el.classList.remove("hidden");
+  renderTimer();
+  timerInterval = setInterval(() => {
+    secondsLeft--;
+    renderTimer();
+    if (secondsLeft <= 0) { stopTimer(); showResult(true); }
+  }, 1000);
+}
+
+function renderTimer() {
+  const el = $("timer");
+  const m = Math.floor(Math.max(secondsLeft, 0) / 60);
+  const s = Math.max(secondsLeft, 0) % 60;
+  el.textContent = "⏳ " + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  el.classList.toggle("warn", secondsLeft <= 60 && secondsLeft > 10);
+  el.classList.toggle("danger", secondsLeft <= 10);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
 
 function init() {
   $("exam-title").textContent = CONFIG.examTitle;
@@ -274,6 +365,11 @@ function init() {
   $("start-count").textContent = QUESTIONS.length;
   $("start-pass").textContent = CONFIG.passMarkPercent + "%";
   if (!CONFIG.showPassFail) $("start-pass-line").classList.add("hidden");
+  if (CONFIG.examDurationMinutes > 0) {
+    $("start-time").textContent = CONFIG.examDurationMinutes + " minutes";
+  } else {
+    $("start-time-line").classList.add("hidden");
+  }
   document.title = CONFIG.examTitle + " — CBT";
   const d = new Date();
   $("candidate-date").value = d.getFullYear() + "-" +
@@ -289,20 +385,22 @@ function startExam() {
     return;
   }
   $("name-error").style.display = "none";
-  userAnswers = new Array(QUESTIONS.length).fill(null);
+  buildActiveQuestions();
+  userAnswers = new Array(activeQuestions.length).fill(null);
   current = 0;
   $("screen-start").classList.add("hidden");
   $("screen-result").classList.add("hidden");
   $("screen-quiz").classList.remove("hidden");
+  startTimer();
   renderQuestion();
 }
 
 function renderQuestion() {
-  const q = QUESTIONS[current];
-  $("progress-text").textContent = "Question " + (current + 1) + " of " + QUESTIONS.length;
+  const q = activeQuestions[current];
+  $("progress-text").textContent = "Question " + (current + 1) + " of " + activeQuestions.length;
   const answered = userAnswers.filter(a => a !== null).length;
   $("answered-text").textContent = answered + " answered";
-  $("progress-fill").style.width = ((current + 1) / QUESTIONS.length * 100) + "%";
+  $("progress-fill").style.width = ((current + 1) / activeQuestions.length * 100) + "%";
   $("q-text").textContent = q.question;
 
   const box = $("q-options");
@@ -323,13 +421,13 @@ function renderQuestion() {
   });
 
   $("btn-prev").disabled = current === 0;
-  const last = current === QUESTIONS.length - 1;
+  const last = current === activeQuestions.length - 1;
   $("btn-next").classList.toggle("hidden", last);
   $("btn-submit").classList.toggle("hidden", !last);
 }
 
 function nextQuestion() {
-  if (current < QUESTIONS.length - 1) { current++; renderQuestion(); }
+  if (current < activeQuestions.length - 1) { current++; renderQuestion(); }
 }
 function prevQuestion() {
   if (current > 0) { current--; renderQuestion(); }
@@ -341,13 +439,16 @@ function submitExam() {
     if (!confirm("You have " + unanswered + " unanswered question" + (unanswered > 1 ? "s" : "") +
                  ". Submit anyway?")) return;
   }
-  showResult();
+  showResult(false);
 }
 
-function showResult() {
+function showResult(timedOut) {
+  stopTimer();
+  $("timeup-note").classList.toggle("hidden", !timedOut);
+
   let score = 0;
-  QUESTIONS.forEach((q, i) => { if (userAnswers[i] === q.answer) score++; });
-  const percent = Math.round(score / QUESTIONS.length * 100);
+  activeQuestions.forEach((q, i) => { if (userAnswers[i] === q.answer) score++; });
+  const percent = Math.round(score / activeQuestions.length * 100);
   const passed = percent >= CONFIG.passMarkPercent;
 
   const name = $("candidate-name").value.trim();
@@ -362,7 +463,7 @@ function showResult() {
   $("screen-quiz").classList.add("hidden");
   $("screen-result").classList.remove("hidden");
   $("score-percent").textContent = percent + "%";
-  $("score-detail").textContent = "You scored " + score + " out of " + QUESTIONS.length +
+  $("score-detail").textContent = "You scored " + score + " out of " + activeQuestions.length +
                                   (CONFIG.showPassFail ? "  (pass mark: " + CONFIG.passMarkPercent + "%)" : "");
 
   const badge = $("result-badge");
@@ -375,7 +476,7 @@ function showResult() {
 
   const list = $("review-list");
   list.innerHTML = "";
-  QUESTIONS.forEach((q, i) => {
+  activeQuestions.forEach((q, i) => {
     const isCorrect = userAnswers[i] === q.answer;
     const item = document.createElement("div");
     item.className = "review-item " + (isCorrect ? "correct" : "wrong");
@@ -410,6 +511,7 @@ function escapeHtml(str) {
 }
 
 function restartExam() {
+  stopTimer();
   $("screen-result").classList.add("hidden");
   $("screen-start").classList.remove("hidden");
 }
