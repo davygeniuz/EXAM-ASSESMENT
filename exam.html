@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enrollment Assessment — CBT</title>
+<style>
+  :root{
+    --bg:#f1f5f9; --card:#ffffff; --ink:#0f172a; --muted:#64748b;
+    --brand:#1d4ed8; --brand-dark:#1e3a8a; --ok:#15803d; --ok-bg:#dcfce7;
+    --bad:#b91c1c; --bad-bg:#fee2e2; --line:#e2e8f0;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:"Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    background:var(--bg); color:var(--ink); min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; padding:24px 16px;
+  }
+  .card{
+    background:var(--card); width:100%; max-width:720px; border-radius:14px;
+    box-shadow:0 4px 18px rgba(15,23,42,.08); padding:32px; border:1px solid var(--line);
+  }
+  h1{font-size:1.6rem; margin-bottom:8px;}
+  h2{font-size:1.15rem; margin-bottom:14px;}
+  .muted{color:var(--muted);}
+  .center{text-align:center;}
+  .btn{
+    display:inline-block; border:none; cursor:pointer; font-size:1rem; font-weight:600;
+    padding:12px 26px; border-radius:9px; background:var(--brand); color:#fff;
+    transition:background .15s;
+  }
+  .btn:hover{background:var(--brand-dark);}
+  .btn:disabled{background:#94a3b8; cursor:not-allowed;}
+  .btn.secondary{background:#e2e8f0; color:var(--ink);}
+  .btn.secondary:hover{background:#cbd5e1;}
+  .rules{margin:18px 0 26px; padding-left:20px; line-height:1.9;}
+  .small{font-size:.9rem;}
+  .candidate{margin:20px 0 4px; text-align:left;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-weight:600; margin-bottom:6px;}
+  .field input{
+    width:100%; padding:11px 13px; font-size:1rem; border:2px solid var(--line);
+    border-radius:9px; background:#fff; color:var(--ink);
+  }
+  .field input:focus{outline:none; border-color:var(--brand);}
+  .field-error{color:var(--bad); font-size:.85rem; margin-top:6px; display:none;}
+
+  /* timer */
+  .timer-row{display:flex; justify-content:flex-end; margin-bottom:10px; min-height:34px;}
+  .timer{
+    font-weight:700; font-variant-numeric:tabular-nums; font-size:.95rem;
+    background:#e2e8f0; color:var(--ink); padding:7px 16px; border-radius:99px;
+  }
+  .timer.warn{background:#fef9c3; color:#854d0e;}
+  .timer.danger{background:var(--bad-bg); color:var(--bad); animation:pulse 1s infinite;}
+  @keyframes pulse{50%{opacity:.5;}}
+  .timeup{
+    display:inline-block; background:var(--bad-bg); color:var(--bad);
+    border-radius:8px; padding:8px 16px; font-weight:600; margin:4px 0 8px;
+  }
+
+  /* progress */
+  .progress-wrap{margin-bottom:20px;}
+  .progress-label{display:flex; justify-content:space-between; font-size:.85rem; color:var(--muted); margin-bottom:6px;}
+  .progress-bar{height:8px; background:var(--line); border-radius:99px; overflow:hidden;}
+  .progress-fill{height:100%; width:0%; background:var(--brand); border-radius:99px; transition:width .25s;}
+
+  /* question */
+  .q-text{font-size:1.15rem; font-weight:600; margin-bottom:18px; line-height:1.5;}
+  .opt{
+    display:flex; align-items:flex-start; gap:12px; padding:13px 16px; margin-bottom:10px;
+    border:2px solid var(--line); border-radius:10px; cursor:pointer; transition:border-color .12s, background .12s;
+    line-height:1.45;
+  }
+  .opt:hover{border-color:#93c5fd; background:#f8fafc;}
+  .opt.selected{border-color:var(--brand); background:#eff6ff;}
+  .opt input{margin-top:3px; accent-color:var(--brand); flex-shrink:0;}
+  .nav{display:flex; justify-content:space-between; margin-top:24px; gap:10px;}
+
+  /* result */
+  .badge{
+    display:inline-block; padding:8px 22px; border-radius:99px; font-weight:700;
+    font-size:1.05rem; letter-spacing:.5px; margin:10px 0 18px;
+  }
+  .badge.pass{background:var(--ok-bg); color:var(--ok);}
+  .badge.fail{background:var(--bad-bg); color:var(--bad);}
+  .score-big{font-size:3rem; font-weight:800; color:var(--brand);}
+  .score-sub{font-size:1rem; color:var(--muted); margin-bottom:22px;}
+  .review{margin-top:26px; text-align:left;}
+  .review-item{
+    border:1px solid var(--line); border-left:5px solid; border-radius:8px;
+    padding:14px 16px; margin-bottom:12px; background:#fff;
+  }
+  .review-item.correct{border-left-color:var(--ok);}
+  .review-item.wrong{border-left-color:var(--bad);}
+  .review-q{font-weight:600; margin-bottom:6px;}
+  .review-line{font-size:.92rem; margin:2px 0;}
+  .tag-ok{color:var(--ok); font-weight:600;}
+  .tag-bad{color:var(--bad); font-weight:600;}
+  .hidden{display:none !important;}
+  footer{margin-top:18px; font-size:.8rem; color:var(--muted);}
+
+  @media print{
+    body{background:#fff; padding:0;}
+    .card{box-shadow:none; border:none;}
+    .btn{display:none !important;}
+  }
+  @media (max-width:520px){
+    .card{padding:22px 18px;}
+    h1{font-size:1.3rem;}
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="app">
+
+  <!-- ============ START SCREEN ============ -->
+  <section id="screen-start">
+    <div class="center">
+      <h1 id="exam-title">Enrollment Assessment</h1>
+      <p class="muted" id="exam-subtitle">Computer-Based Test (CBT)</p>
+      <p class="muted small" id="exam-note"></p>
+    </div>
+    <div class="candidate">
+      <div class="field">
+        <label for="candidate-name">Student name</label>
+        <input id="candidate-name" type="text" placeholder="Enter your full name" autocomplete="name">
+        <div class="field-error" id="name-error">Please enter your name before starting.</div>
+      </div>
+      <div class="field">
+        <label for="candidate-date">Date</label>
+        <input id="candidate-date" type="date">
+      </div>
+    </div>
+    <ul class="rules">
+      <li>This test contains <strong id="start-count"></strong> questions.</li>
+      <li>Choose one option per question, then move to the next.</li>
+      <li>You can go back and change an answer before submitting.</li>
+      <li>Your result is shown <strong>immediately</strong> after you submit.</li>
+      <li id="start-time-line">Time limit: <strong id="start-time"></strong>. The test submits itself when time runs out.</li>
+      <li id="start-pass-line">Pass mark: <strong id="start-pass"></strong>.</li>
+    </ul>
+    <div class="center">
+      <button class="btn" onclick="startExam()">Start Test</button>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ SCREEN ============ -->
+  <section id="screen-quiz" class="hidden">
+    <div class="timer-row"><span id="timer" class="timer hidden"></span></div>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span id="progress-text"></span>
+        <span id="answered-text"></span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+    <div class="q-text" id="q-text"></div>
+    <div id="q-options"></div>
+    <div class="nav">
+      <button class="btn secondary" id="btn-prev" onclick="prevQuestion()">&#8592; Previous</button>
+      <button class="btn" id="btn-next" onclick="nextQuestion()">Next &#8594;</button>
+      <button class="btn hidden" id="btn-submit" onclick="submitExam()">Submit Test</button>
+    </div>
+  </section>
+
+  <!-- ============ RESULT SCREEN ============ -->
+  <section id="screen-result" class="hidden center">
+    <h1>Test Complete!</h1>
+    <p class="muted">Here is your result</p>
+    <p class="muted small" id="result-meta"></p>
+    <div><span id="timeup-note" class="timeup hidden">⏰ Time expired — the test was submitted automatically.</span></div>
+    <div class="score-big" id="score-percent"></div>
+    <div class="score-sub" id="score-detail"></div>
+    <div class="badge" id="result-badge"></div>
+    <div>
+      <button class="btn secondary" onclick="window.print()">Print Result</button>
+      <button class="btn" onclick="restartExam()">Retake Test</button>
+    </div>
+    <div class="review">
+      <h2>Answer Review</h2>
+      <div id="review-list"></div>
+    </div>
+  </section>
+
+</div>
+
+<footer>Offline CBT &mdash; no internet connection required.</footer>
+
+<script>
+/* =====================================================================
+   1. SETTINGS — edit these to configure the exam
+   ===================================================================== */
+const CONFIG = {
+  examTitle: "NetClass — Quick Assessment",
+  subtitle: "Cisco Networking · Emoji Digitals Academy · 2026 · Cohort 01",
+  note: "Choose one answer for each question. You have 5 minutes on the clock. This helps us understand your starting point.",
+  passMarkPercent: 60,    // pass mark in % (used only when showPassFail is true)
+  showPassFail: true,     // the source form is diagnostic ("not a pass-or-fail test") — set false to hide the PASSED/FAILED badge
+  examDurationMinutes: 5, // countdown timer in minutes (0 = no timer)
+  shuffleQuestions: true  // shuffle question order on every attempt
+};
+
+/* =====================================================================
+   2. QUESTION BANK — EDIT YOUR QUESTIONS HERE
+   ---------------------------------------------------------------------
+   Each question is an object:
+     question : the question text
+     options  : array of 2–5 answer choices (A, B, C, D...)
+     answer   : the index of the correct option (0 = A, 1 = B, 2 = C, 3 = D)
+
+   Questions below are taken from the NetClass "Quick assessment" form
+   (Cisco Networking · Emoji Digitals Academy · 2026 · Cohort 01).
+   ===================================================================== */
+const QUESTIONS = [
+  {
+    question: "What number comes next in this sequence: 2, 4, 8, 16, ___?",
+    options: ["18", "24", "32", "64"],
+    answer: 2
+  },
+  {
+    question: "All routers are network devices. Which statement must be true?",
+    options: [
+      "All network devices are routers.",
+      "Every router is a network device.",
+      "No router is a network device.",
+      "Every computer is a router."
+    ],
+    answer: 1
+  },
+  {
+    question: "Which of these is an input device used to enter information into a computer?",
+    options: ["Monitor", "Speaker", "Keyboard", "Printer"],
+    answer: 2
+  },
+  {
+    question: "What is the main job of an operating system, such as Windows or Linux?",
+    options: [
+      "To supply electricity to a computer.",
+      "To manage the computer's hardware and applications.",
+      "To print documents only.",
+      "To make every website safe."
+    ],
+    answer: 1
+  },
+  {
+    question: "Why do we connect computers together in a network?",
+    options: [
+      "To share information and resources.",
+      "To make their screens bigger.",
+      "To remove the need for software.",
+      "To stop people from communicating."
+    ],
+    answer: 0
+  },
+  {
+    question: "An unexpected message asks you to share your password. What should you do?",
+    options: [
+      "Reply with your password immediately.",
+      "Share it if the message has a familiar logo.",
+      "Send it to a friend to check first.",
+      "Do not share it; verify the request through a trusted channel."
+    ],
+    answer: 3
+  },
+  {
+    question: "Your computer cannot connect to the internet. What is a sensible first step?",
+    options: [
+      "Delete all your files.",
+      "Buy a new computer immediately.",
+      "Check the Wi-Fi or cable connection and network settings.",
+      "Reinstall the operating system immediately."
+    ],
+    answer: 2
+  },
+  /* --- Logic --- */
+  {
+    question: "If a device is a router, then it connects different networks. Device X is a router. Which conclusion must be true?",
+    options: [
+      "Device X connects different networks.",
+      "Any device that connects networks is a router.",
+      "Device X is a computer.",
+      "Device X cannot connect networks."
+    ],
+    answer: 0
+  },
+  /* --- Problem solving --- */
+  {
+    question: "You must send a 2 GB project file, but email only allows 25 MB attachments. What is the most practical solution?",
+    options: [
+      "Send the email anyway and hope it arrives.",
+      "Delete parts of the file so it fits, without telling the recipient.",
+      "Split or compress the file, or share it through cloud storage or a USB drive.",
+      "Print the file and post the paper copy."
+    ],
+    answer: 2
+  },
+  /* --- Quantitative reasoning --- */
+  {
+    question: "In a training cohort, the ratio of boys to girls is 3 : 5. If there are 24 boys, how many girls are there?",
+    options: ["15", "32", "40", "45"],
+    answer: 2
+  }
+];
+
+/* =====================================================================
+   3. EXAM ENGINE — no need to edit below this line
+   ===================================================================== */
+let current = 0;
+let userAnswers = [];
+let activeQuestions = [];
+let timerInterval = null;
+let secondsLeft = 0;
+
+const $ = id => document.getElementById(id);
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function buildActiveQuestions() {
+  activeQuestions = CONFIG.shuffleQuestions ? shuffle(QUESTIONS) : QUESTIONS.slice();
+}
+
+/* ---------- countdown timer ---------- */
+function startTimer() {
+  stopTimer();
+  const el = $("timer");
+  if (!CONFIG.examDurationMinutes) { el.classList.add("hidden"); return; }
+  secondsLeft = CONFIG.examDurationMinutes * 60;
+  el.classList.remove("hidden");
+  renderTimer();
+  timerInterval = setInterval(() => {
+    secondsLeft--;
+    renderTimer();
+    if (secondsLeft <= 0) { stopTimer(); showResult(true); }
+  }, 1000);
+}
+
+function renderTimer() {
+  const el = $("timer");
+  const m = Math.floor(Math.max(secondsLeft, 0) / 60);
+  const s = Math.max(secondsLeft, 0) % 60;
+  el.textContent = "⏳ " + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  el.classList.toggle("warn", secondsLeft <= 60 && secondsLeft > 10);
+  el.classList.toggle("danger", secondsLeft <= 10);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function init() {
+  $("exam-title").textContent = CONFIG.examTitle;
+  $("exam-subtitle").textContent = CONFIG.subtitle;
+  const note = $("exam-note");
+  note.textContent = CONFIG.note || "";
+  if (!CONFIG.note) note.classList.add("hidden");
+  $("start-count").textContent = QUESTIONS.length;
+  $("start-pass").textContent = CONFIG.passMarkPercent + "%";
+  if (!CONFIG.showPassFail) $("start-pass-line").classList.add("hidden");
+  if (CONFIG.examDurationMinutes > 0) {
+    $("start-time").textContent = CONFIG.examDurationMinutes + " minutes";
+  } else {
+    $("start-time-line").classList.add("hidden");
+  }
+  document.title = CONFIG.examTitle + " — CBT";
+  const d = new Date();
+  $("candidate-date").value = d.getFullYear() + "-" +
+    String(d.getMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getDate()).padStart(2, "0");
+}
+
+function startExam() {
+  const name = $("candidate-name").value.trim();
+  if (!name) {
+    $("name-error").style.display = "block";
+    $("candidate-name").focus();
+    return;
+  }
+  $("name-error").style.display = "none";
+  buildActiveQuestions();
+  userAnswers = new Array(activeQuestions.length).fill(null);
+  current = 0;
+  $("screen-start").classList.add("hidden");
+  $("screen-result").classList.add("hidden");
+  $("screen-quiz").classList.remove("hidden");
+  startTimer();
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = activeQuestions[current];
+  $("progress-text").textContent = "Question " + (current + 1) + " of " + activeQuestions.length;
+  const answered = userAnswers.filter(a => a !== null).length;
+  $("answered-text").textContent = answered + " answered";
+  $("progress-fill").style.width = ((current + 1) / activeQuestions.length * 100) + "%";
+  $("q-text").textContent = q.question;
+
+  const box = $("q-options");
+  box.innerHTML = "";
+  q.options.forEach((opt, i) => {
+    const label = document.createElement("label");
+    label.className = "opt" + (userAnswers[current] === i ? " selected" : "");
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "q" + current;
+    radio.checked = userAnswers[current] === i;
+    radio.onchange = () => { userAnswers[current] = i; renderQuestion(); };
+    const span = document.createElement("span");
+    span.textContent = opt;
+    label.appendChild(radio);
+    label.appendChild(span);
+    box.appendChild(label);
+  });
+
+  $("btn-prev").disabled = current === 0;
+  const last = current === activeQuestions.length - 1;
+  $("btn-next").classList.toggle("hidden", last);
+  $("btn-submit").classList.toggle("hidden", !last);
+}
+
+function nextQuestion() {
+  if (current < activeQuestions.length - 1) { current++; renderQuestion(); }
+}
+function prevQuestion() {
+  if (current > 0) { current--; renderQuestion(); }
+}
+
+function submitExam() {
+  const unanswered = userAnswers.filter(a => a === null).length;
+  if (unanswered > 0) {
+    if (!confirm("You have " + unanswered + " unanswered question" + (unanswered > 1 ? "s" : "") +
+                 ". Submit anyway?")) return;
+  }
+  showResult(false);
+}
+
+function showResult(timedOut) {
+  stopTimer();
+  $("timeup-note").classList.toggle("hidden", !timedOut);
+
+  let score = 0;
+  activeQuestions.forEach((q, i) => { if (userAnswers[i] === q.answer) score++; });
+  const percent = Math.round(score / activeQuestions.length * 100);
+  const passed = percent >= CONFIG.passMarkPercent;
+
+  const name = $("candidate-name").value.trim();
+  const dateVal = $("candidate-date").value;
+  let meta = name;
+  if (dateVal) {
+    const dt = new Date(dateVal + "T00:00:00");
+    meta += "  ·  " + dt.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  }
+  $("result-meta").textContent = meta;
+
+  $("screen-quiz").classList.add("hidden");
+  $("screen-result").classList.remove("hidden");
+  $("score-percent").textContent = percent + "%";
+  $("score-detail").textContent = "You scored " + score + " out of " + activeQuestions.length +
+                                  (CONFIG.showPassFail ? "  (pass mark: " + CONFIG.passMarkPercent + "%)" : "");
+
+  const badge = $("result-badge");
+  if (CONFIG.showPassFail) {
+    badge.textContent = passed ? "PASSED ✔" : "FAILED ✘";
+    badge.className = "badge " + (passed ? "pass" : "fail");
+  } else {
+    badge.classList.add("hidden");
+  }
+
+  const list = $("review-list");
+  list.innerHTML = "";
+  activeQuestions.forEach((q, i) => {
+    const isCorrect = userAnswers[i] === q.answer;
+    const item = document.createElement("div");
+    item.className = "review-item " + (isCorrect ? "correct" : "wrong");
+
+    const qEl = document.createElement("div");
+    qEl.className = "review-q";
+    qEl.textContent = (i + 1) + ". " + q.question;
+    item.appendChild(qEl);
+
+    const yourAns = userAnswers[i] === null ? "Not answered" : q.options[userAnswers[i]];
+    const yourLine = document.createElement("div");
+    yourLine.className = "review-line";
+    yourLine.innerHTML = "Your answer: <span class='" + (isCorrect ? "tag-ok" : "tag-bad") + "'>" +
+                         escapeHtml(yourAns) + "</span>";
+    item.appendChild(yourLine);
+
+    if (!isCorrect) {
+      const correctLine = document.createElement("div");
+      correctLine.className = "review-line";
+      correctLine.innerHTML = "Correct answer: <span class='tag-ok'>" +
+                              escapeHtml(q.options[q.answer]) + "</span>";
+      item.appendChild(correctLine);
+    }
+    list.appendChild(item);
+  });
+  window.scrollTo(0, 0);
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[s]));
+}
+
+function restartExam() {
+  stopTimer();
+  $("screen-result").classList.add("hidden");
+  $("screen-start").classList.remove("hidden");
+}
+
+init();
+</script>
+</body>
+</html>
