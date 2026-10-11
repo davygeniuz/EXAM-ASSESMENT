@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enrollment Assessment — CBT</title>
+<style>
+  :root{
+    --bg:#f1f5f9; --card:#ffffff; --ink:#0f172a; --muted:#64748b;
+    --brand:#1d4ed8; --brand-dark:#1e3a8a; --ok:#15803d; --ok-bg:#dcfce7;
+    --bad:#b91c1c; --bad-bg:#fee2e2; --line:#e2e8f0;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:"Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    background:var(--bg); color:var(--ink); min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; padding:24px 16px;
+  }
+  .card{
+    background:var(--card); width:100%; max-width:720px; border-radius:14px;
+    box-shadow:0 4px 18px rgba(15,23,42,.08); padding:32px; border:1px solid var(--line);
+  }
+  h1{font-size:1.6rem; margin-bottom:8px;}
+  h2{font-size:1.15rem; margin-bottom:14px;}
+  .muted{color:var(--muted);}
+  .center{text-align:center;}
+  .btn{
+    display:inline-block; border:none; cursor:pointer; font-size:1rem; font-weight:600;
+    padding:12px 26px; border-radius:9px; background:var(--brand); color:#fff;
+    transition:background .15s;
+  }
+  .btn:hover{background:var(--brand-dark);}
+  .btn:disabled{background:#94a3b8; cursor:not-allowed;}
+  .btn.secondary{background:#e2e8f0; color:var(--ink);}
+  .btn.secondary:hover{background:#cbd5e1;}
+  .rules{margin:18px 0 26px; padding-left:20px; line-height:1.9;}
+
+  /* progress */
+  .progress-wrap{margin-bottom:20px;}
+  .progress-label{display:flex; justify-content:space-between; font-size:.85rem; color:var(--muted); margin-bottom:6px;}
+  .progress-bar{height:8px; background:var(--line); border-radius:99px; overflow:hidden;}
+  .progress-fill{height:100%; width:0%; background:var(--brand); border-radius:99px; transition:width .25s;}
+
+  /* question */
+  .q-text{font-size:1.15rem; font-weight:600; margin-bottom:18px; line-height:1.5;}
+  .opt{
+    display:flex; align-items:flex-start; gap:12px; padding:13px 16px; margin-bottom:10px;
+    border:2px solid var(--line); border-radius:10px; cursor:pointer; transition:border-color .12s, background .12s;
+    line-height:1.45;
+  }
+  .opt:hover{border-color:#93c5fd; background:#f8fafc;}
+  .opt.selected{border-color:var(--brand); background:#eff6ff;}
+  .opt input{margin-top:3px; accent-color:var(--brand); flex-shrink:0;}
+  .nav{display:flex; justify-content:space-between; margin-top:24px; gap:10px;}
+
+  /* result */
+  .badge{
+    display:inline-block; padding:8px 22px; border-radius:99px; font-weight:700;
+    font-size:1.05rem; letter-spacing:.5px; margin:10px 0 18px;
+  }
+  .badge.pass{background:var(--ok-bg); color:var(--ok);}
+  .badge.fail{background:var(--bad-bg); color:var(--bad);}
+  .score-big{font-size:3rem; font-weight:800; color:var(--brand);}
+  .score-sub{font-size:1rem; color:var(--muted); margin-bottom:22px;}
+  .review{margin-top:26px; text-align:left;}
+  .review-item{
+    border:1px solid var(--line); border-left:5px solid; border-radius:8px;
+    padding:14px 16px; margin-bottom:12px; background:#fff;
+  }
+  .review-item.correct{border-left-color:var(--ok);}
+  .review-item.wrong{border-left-color:var(--bad);}
+  .review-q{font-weight:600; margin-bottom:6px;}
+  .review-line{font-size:.92rem; margin:2px 0;}
+  .tag-ok{color:var(--ok); font-weight:600;}
+  .tag-bad{color:var(--bad); font-weight:600;}
+  .hidden{display:none !important;}
+  footer{margin-top:18px; font-size:.8rem; color:var(--muted);}
+
+  @media print{
+    body{background:#fff; padding:0;}
+    .card{box-shadow:none; border:none;}
+    .btn{display:none !important;}
+  }
+  @media (max-width:520px){
+    .card{padding:22px 18px;}
+    h1{font-size:1.3rem;}
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="app">
+
+  <!-- ============ START SCREEN ============ -->
+  <section id="screen-start">
+    <div class="center">
+      <h1 id="exam-title">Enrollment Assessment</h1>
+      <p class="muted" id="exam-subtitle">Computer-Based Test (CBT)</p>
+    </div>
+    <ul class="rules">
+      <li>This test contains <strong id="start-count"></strong> questions.</li>
+      <li>Choose one option per question, then move to the next.</li>
+      <li>You can go back and change an answer before submitting.</li>
+      <li>Your result is shown <strong>immediately</strong> after you submit.</li>
+      <li>Pass mark: <strong id="start-pass"></strong>.</li>
+    </ul>
+    <div class="center">
+      <button class="btn" onclick="startExam()">Start Test</button>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ SCREEN ============ -->
+  <section id="screen-quiz" class="hidden">
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span id="progress-text"></span>
+        <span id="answered-text"></span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+    <div class="q-text" id="q-text"></div>
+    <div id="q-options"></div>
+    <div class="nav">
+      <button class="btn secondary" id="btn-prev" onclick="prevQuestion()">&#8592; Previous</button>
+      <button class="btn" id="btn-next" onclick="nextQuestion()">Next &#8594;</button>
+      <button class="btn hidden" id="btn-submit" onclick="submitExam()">Submit Test</button>
+    </div>
+  </section>
+
+  <!-- ============ RESULT SCREEN ============ -->
+  <section id="screen-result" class="hidden center">
+    <h1>Test Complete!</h1>
+    <p class="muted">Here is your result</p>
+    <div class="score-big" id="score-percent"></div>
+    <div class="score-sub" id="score-detail"></div>
+    <div class="badge" id="result-badge"></div>
+    <div>
+      <button class="btn secondary" onclick="window.print()">Print Result</button>
+      <button class="btn" onclick="restartExam()">Retake Test</button>
+    </div>
+    <div class="review">
+      <h2>Answer Review</h2>
+      <div id="review-list"></div>
+    </div>
+  </section>
+
+</div>
+
+<footer>Offline CBT &mdash; no internet connection required.</footer>
+
+<script>
+/* =====================================================================
+   1. SETTINGS — edit these to configure the exam
+   ===================================================================== */
+const CONFIG = {
+  examTitle: "Enrollment Assessment",   // title shown on screen
+  subtitle: "Computer-Based Test (CBT)",
+  passMarkPercent: 50                   // pass mark in % (e.g. 50)
+};
+
+/* =====================================================================
+   2. QUESTION BANK — EDIT YOUR QUESTIONS HERE
+   ---------------------------------------------------------------------
+   Each question is an object:
+     question : the question text
+     options  : array of 2–5 answer choices
+     answer   : the index of the correct option (0 = first, 1 = second...)
+
+   ⚠ The questions below are SAMPLE placeholders.
+     Replace them with your real enrollment assessment questions.
+   ===================================================================== */
+const QUESTIONS = [
+  {
+    question: "If a school has 240 students and 3/8 of them are in the junior class, how many students are in the junior class?",
+    options: ["60", "80", "90", "120"],
+    answer: 2
+  },
+  {
+    question: "Choose the correctly spelled word:",
+    options: ["Recieve", "Receive", "Receeve", "Receve"],
+    answer: 1
+  },
+  {
+    question: "What is 15% of 200?",
+    options: ["15", "20", "30", "35"],
+    answer: 2
+  },
+  {
+    question: "Which of these is a noun in the sentence: 'The diligent student passed the exam'?",
+    options: ["diligent", "passed", "student", "the"],
+    answer: 2
+  },
+  {
+    question: "Solve for x:  2x + 6 = 18",
+    options: ["x = 4", "x = 6", "x = 9", "x = 12"],
+    answer: 1
+  },
+  {
+    question: "The capital city of Nigeria is:",
+    options: ["Lagos", "Abuja", "Port Harcourt", "Kano"],
+    answer: 1
+  },
+  {
+    question: "Which word is the opposite (antonym) of 'ancient'?",
+    options: ["old", "modern", "antique", "aged"],
+    answer: 1
+  },
+  {
+    question: "A rectangle has a length of 12 cm and a width of 5 cm. What is its area?",
+    options: ["17 cm²", "34 cm²", "60 cm²", "70 cm²"],
+    answer: 2
+  },
+  {
+    question: "Complete the sentence: 'Neither of the boys ____ present at the assembly.'",
+    options: ["were", "was", "are", "have"],
+    answer: 1
+  },
+  {
+    question: "What is the next number in the sequence: 2, 6, 12, 20, 30, ...?",
+    options: ["40", "42", "44", "36"],
+    answer: 1
+  }
+];
+
+/* =====================================================================
+   3. EXAM ENGINE — no need to edit below this line
+   ===================================================================== */
+let current = 0;
+let userAnswers = [];
+
+const $ = id => document.getElementById(id);
+
+function init() {
+  $("exam-title").textContent = CONFIG.examTitle;
+  $("exam-subtitle").textContent = CONFIG.subtitle;
+  $("start-count").textContent = QUESTIONS.length;
+  $("start-pass").textContent = CONFIG.passMarkPercent + "%";
+  document.title = CONFIG.examTitle + " — CBT";
+}
+
+function startExam() {
+  userAnswers = new Array(QUESTIONS.length).fill(null);
+  current = 0;
+  $("screen-start").classList.add("hidden");
+  $("screen-result").classList.add("hidden");
+  $("screen-quiz").classList.remove("hidden");
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[current];
+  $("progress-text").textContent = "Question " + (current + 1) + " of " + QUESTIONS.length;
+  const answered = userAnswers.filter(a => a !== null).length;
+  $("answered-text").textContent = answered + " answered";
+  $("progress-fill").style.width = ((current + 1) / QUESTIONS.length * 100) + "%";
+  $("q-text").textContent = q.question;
+
+  const box = $("q-options");
+  box.innerHTML = "";
+  q.options.forEach((opt, i) => {
+    const label = document.createElement("label");
+    label.className = "opt" + (userAnswers[current] === i ? " selected" : "");
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "q" + current;
+    radio.checked = userAnswers[current] === i;
+    radio.onchange = () => { userAnswers[current] = i; renderQuestion(); };
+    const span = document.createElement("span");
+    span.textContent = opt;
+    label.appendChild(radio);
+    label.appendChild(span);
+    box.appendChild(label);
+  });
+
+  $("btn-prev").disabled = current === 0;
+  const last = current === QUESTIONS.length - 1;
+  $("btn-next").classList.toggle("hidden", last);
+  $("btn-submit").classList.toggle("hidden", !last);
+}
+
+function nextQuestion() {
+  if (current < QUESTIONS.length - 1) { current++; renderQuestion(); }
+}
+function prevQuestion() {
+  if (current > 0) { current--; renderQuestion(); }
+}
+
+function submitExam() {
+  const unanswered = userAnswers.filter(a => a === null).length;
+  if (unanswered > 0) {
+    if (!confirm("You have " + unanswered + " unanswered question" + (unanswered > 1 ? "s" : "") +
+                 ". Submit anyway?")) return;
+  }
+  showResult();
+}
+
+function showResult() {
+  let score = 0;
+  QUESTIONS.forEach((q, i) => { if (userAnswers[i] === q.answer) score++; });
+  const percent = Math.round(score / QUESTIONS.length * 100);
+  const passed = percent >= CONFIG.passMarkPercent;
+
+  $("screen-quiz").classList.add("hidden");
+  $("screen-result").classList.remove("hidden");
+  $("score-percent").textContent = percent + "%";
+  $("score-detail").textContent = "You scored " + score + " out of " + QUESTIONS.length +
+                                  "  (pass mark: " + CONFIG.passMarkPercent + "%)";
+
+  const badge = $("result-badge");
+  badge.textContent = passed ? "PASSED ✔" : "FAILED ✘";
+  badge.className = "badge " + (passed ? "pass" : "fail");
+
+  const list = $("review-list");
+  list.innerHTML = "";
+  QUESTIONS.forEach((q, i) => {
+    const isCorrect = userAnswers[i] === q.answer;
+    const item = document.createElement("div");
+    item.className = "review-item " + (isCorrect ? "correct" : "wrong");
+
+    const qEl = document.createElement("div");
+    qEl.className = "review-q";
+    qEl.textContent = (i + 1) + ". " + q.question;
+    item.appendChild(qEl);
+
+    const yourAns = userAnswers[i] === null ? "Not answered" : q.options[userAnswers[i]];
+    const yourLine = document.createElement("div");
+    yourLine.className = "review-line";
+    yourLine.innerHTML = "Your answer: <span class='" + (isCorrect ? "tag-ok" : "tag-bad") + "'>" +
+                         escapeHtml(yourAns) + "</span>";
+    item.appendChild(yourLine);
+
+    if (!isCorrect) {
+      const correctLine = document.createElement("div");
+      correctLine.className = "review-line";
+      correctLine.innerHTML = "Correct answer: <span class='tag-ok'>" +
+                              escapeHtml(q.options[q.answer]) + "</span>";
+      item.appendChild(correctLine);
+    }
+    list.appendChild(item);
+  });
+  window.scrollTo(0, 0);
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[s]));
+}
+
+function restartExam() {
+  $("screen-result").classList.add("hidden");
+  $("screen-start").classList.remove("hidden");
+}
+
+init();
+</script>
+</body>
+</html>
