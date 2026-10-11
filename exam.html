@@ -193,13 +193,14 @@
    1. SETTINGS — edit these to configure the exam
    ===================================================================== */
 const CONFIG = {
-  examTitle: "NetClass — Quick Assessment",
+  examTitle: "SODIA ENROLLMENT ASSESSMENT",
   subtitle: "Cisco Networking · Emoji Digitals Academy · 2026 · Cohort 01",
   note: "Choose one answer for each question. You have 5 minutes on the clock. This helps us understand your starting point.",
-  passMarkPercent: 60,    // pass mark in % (used only when showPassFail is true)
+  passMarkPercent: 50,    // pass mark in % (used only when showPassFail is true)
   showPassFail: true,     // the source form is diagnostic ("not a pass-or-fail test") — set false to hide the PASSED/FAILED badge
   examDurationMinutes: 5, // countdown timer in minutes (0 = no timer)
-  shuffleQuestions: true  // shuffle question order on every attempt
+  shuffleQuestions: true, // shuffle question order on every attempt
+  shuffleOptions: true    // shuffle the answer options on every attempt
 };
 
 /* =====================================================================
@@ -325,7 +326,18 @@ function shuffle(arr) {
 }
 
 function buildActiveQuestions() {
-  activeQuestions = CONFIG.shuffleQuestions ? shuffle(QUESTIONS) : QUESTIONS.slice();
+  const base = CONFIG.shuffleQuestions ? shuffle(QUESTIONS) : QUESTIONS.slice();
+  activeQuestions = base.map(q => {
+    if (!CONFIG.shuffleOptions) return q;
+    // Shuffle the option order, then remap the correct-answer index so it
+    // still points at the same option text.
+    const order = shuffle(q.options.map((_, i) => i));
+    return {
+      question: q.question,
+      options: order.map(i => q.options[i]),
+      answer: order.indexOf(q.answer)
+    };
+  });
 }
 
 /* ---------- countdown timer ---------- */
