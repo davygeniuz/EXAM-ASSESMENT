@@ -8,6 +8,41 @@ Everything lives in one self-contained file — no internet, server, or installa
 
 Open `exam.html` in any web browser (double-click it). That's it.
 
+## Two parallel forms
+
+The same exam exists in two interchangeable versions, so a cohort can be split
+(seated neighbours get different papers) or retaken without reusing the same questions:
+
+| File                | Form  | Questions                                                |
+| ------------------- | ----- | -------------------------------------------------------- |
+| `exam.html`         | Form A | Original NetClass "Quick assessment" items                |
+| `exam-variant-b.html` | Form B | Brand-new parallel questions, same 10 skill areas        |
+
+Both forms share the same settings (50% pass mark, 5-minute timer, question and
+option shuffling) and the same question format, so they behave identically. No
+question text or correct-answer text is shared between the two.
+
+### Answer key
+
+Question numbers below are the order in the file — the test shuffles them on each
+attempt, so the review screen is the reliable place to check answers.
+
+| #  | Skill area                 | Form A                                                  | Form B                                                        |
+| -- | -------------------------- | ------------------------------------------------------- | ------------------------------------------------------------- |
+| 1  | Number sequences           | 2, 4, 8, 16 → **32** (C)                                | 3, 6, 12, 24 → **48** (C)                                     |
+| 2  | Categorical logic          | **Every router is a network device** (B)                | **Every switch is a network device** (B)                      |
+| 3  | Hardware / devices         | Input device → **Keyboard** (C)                         | Output device → **Monitor** (D)                               |
+| 4  | Operating systems          | **Manage hardware and applications** (B)                | **Managing files, memory, applications** (A)                  |
+| 5  | Networking                 | **To share information and resources** (A)              | **Shares information, printers, internet** (B)                |
+| 6  | Cybersecurity awareness    | **Do not share; verify via trusted channel** (D)        | **End the call; verify via official channel** (C)             |
+| 7  | Troubleshooting            | **Check Wi-Fi / cable and network settings** (C)        | **Check printer power, cable/Wi-Fi and print queue** (A)      |
+| 8  | Conditional reasoning      | **Device X connects different networks** (A)            | **File Z takes up less storage space** (B)                    |
+| 9  | Problem solving            | **Split/compress or use cloud/USB** (C)                 | **Arrange a charger and test it beforehand** (C)              |
+| 10 | Quantitative reasoning     | 3 : 5 with 24 boys → **40 girls** (C)                   | 4 : 7 with 28 desktops → **16 laptops** (B)                   |
+
+If you would rather have a single, bigger pool of questions, copy the entries from
+one form's `QUESTIONS` array into the other — the engine adapts to any count.
+
 ## Features
 
 - Student name + date captured on the start screen (date pre-filled, like the paper form)
